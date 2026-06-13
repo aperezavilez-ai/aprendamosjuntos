@@ -68,6 +68,7 @@ export interface Paciente {
   apellidos: string
   fecha_nacimiento: string
   sexo?: 'masculino' | 'femenino' | 'otro'
+  genero?: string
   curp?: string
   nss?: string
   grupo_sanguineo?: string
@@ -75,13 +76,17 @@ export interface Paciente {
   foto_url?: string
   escuela?: string
   grado_escolar?: string
+  turno_escolar?: string
+  fecha_inicio?: string
   diagnostico_principal?: string
   diagnostico_secundario?: string
+  diagnosticos?: any[]
   motivo_consulta?: string
   antecedentes_medicos?: string
   antecedentes_familiares?: string
-  medicamentos?: string
-  alergias?: string
+  antecedentes?: string
+  medicamentos?: string | string[]
+  alergias?: string | string[]
   embarazo?: string
   parto?: string
   desarrollo_motor?: string
