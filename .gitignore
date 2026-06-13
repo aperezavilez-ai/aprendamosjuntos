@@ -56,3 +56,5 @@ supabase/.env
 
 # PWA
 public/sw.js.map
+
+.vercel
