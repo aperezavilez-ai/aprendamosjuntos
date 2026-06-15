@@ -156,25 +156,32 @@ export default function MensajesPage() {
 
     setEnviando(true)
     try {
-      const { error } = await supabase.from('mensajes_whatsapp').insert({
-        clinica_id: clinicaId,
-        paciente_id: pacienteSeleccionado,
-        familiar_id: fam.id,
-        enviado_por: usuarioId,
-        telefono_destino: fam.telefono,
-        tipo_mensaje: plantillaSeleccionada || 'libre',
-        plantilla: plantillaSeleccionada || null,
-        contenido: mensaje,
-        estado: 'enviado',
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telefono: fam.telefono,
+          mensaje,
+          tipo: plantillaSeleccionada || 'libre',
+          plantilla: plantillaSeleccionada || null,
+          pacienteId: pacienteSeleccionado,
+          familiarId: fam.id,
+        }),
       })
-      if (error) throw error
-      toast.success('Mensaje registrado para envío')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al enviar')
+
+      if (data.enviado_wa) {
+        toast.success('Mensaje enviado por WhatsApp')
+      } else {
+        toast.success('Mensaje registrado (configura WhatsApp en Configuración para envío real)')
+      }
       setMensaje('')
       setPlantillaSeleccionada('')
       setModalEnvioOpen(false)
       fetchData()
     } catch (err) {
-      toast.error('Error al enviar el mensaje')
+      toast.error(err instanceof Error ? err.message : 'Error al enviar el mensaje')
       console.error(err)
     } finally {
       setEnviando(false)

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import {
   PlusIcon,
   ClipboardDocumentListIcon,
@@ -41,20 +41,29 @@ function ModalNuevaEvaluacion({
   onClose,
   pacientes,
   onSave,
+  initialPacienteId = '',
 }: {
   open: boolean
   onClose: () => void
   pacientes: Paciente[]
   onSave: () => void
+  initialPacienteId?: string
 }) {
   const [paso, setPaso] = useState(1)
-  const [pacienteId, setPacienteId] = useState('')
+  const [pacienteId, setPacienteId] = useState(initialPacienteId)
   const [tipoSeleccionado, setTipoSeleccionado] = useState<TipoEvaluacion | ''>('')
   const [items, setItems] = useState<ItemEval[]>([])
   const [observaciones, setObservaciones] = useState('')
   const [recomendaciones, setRecomendaciones] = useState('')
   const [guardando, setGuardando] = useState(false)
   const supabase = createClient()
+
+  useEffect(() => {
+    if (open && initialPacienteId) {
+      setPacienteId(initialPacienteId)
+      setPaso(1)
+    }
+  }, [open, initialPacienteId])
 
   useEffect(() => {
     if (tipoSeleccionado) fetchItems()
@@ -340,12 +349,19 @@ export default function EvaluacionesPage() {
   const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([])
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [modalOpen, setModalOpen] = useState(false)
+  const [initialPacienteId, setInitialPacienteId] = useState('')
   const [loading, setLoading] = useState(true)
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
   const supabase = createClient()
 
   useEffect(() => {
     fetchData()
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('nueva') === '1') {
+      setModalOpen(true)
+      const paciente = params.get('paciente')
+      if (paciente) setInitialPacienteId(paciente)
+    }
   }, [])
 
   const fetchData = async () => {
@@ -524,6 +540,7 @@ export default function EvaluacionesPage() {
         onClose={() => setModalOpen(false)}
         pacientes={pacientes}
         onSave={fetchData}
+        initialPacienteId={initialPacienteId}
       />
     </div>
   )

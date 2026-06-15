@@ -22,15 +22,16 @@ const AREAS_INTERVENCION = [
 ]
 
 function ModalNuevoPlan({
-  open, onClose, pacientes, onSave,
+  open, onClose, pacientes, onSave, initialPacienteId = '',
 }: {
   open: boolean
   onClose: () => void
   pacientes: Paciente[]
   onSave: () => void
+  initialPacienteId?: string
 }) {
   const [form, setForm] = useState({
-    paciente_id: '',
+    paciente_id: initialPacienteId,
     titulo: '',
     objetivo_general: '',
     justificacion: '',
@@ -45,6 +46,12 @@ function ModalNuevoPlan({
   ])
   const [guardando, setGuardando] = useState(false)
   const supabase = createClient()
+
+  useEffect(() => {
+    if (open && initialPacienteId) {
+      setForm(f => ({ ...f, paciente_id: initialPacienteId }))
+    }
+  }, [open, initialPacienteId])
 
   const toggleArea = (area: string) => {
     setForm(f => ({
@@ -242,11 +249,20 @@ export default function PlanesPage() {
   const [planes, setPlanes] = useState<PlanTerapeutico[]>([])
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [modalOpen, setModalOpen] = useState(false)
+  const [initialPacienteId, setInitialPacienteId] = useState('')
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState('activo')
   const supabase = createClient()
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    fetchData()
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('nuevo') === '1') {
+      setModalOpen(true)
+      const paciente = params.get('paciente')
+      if (paciente) setInitialPacienteId(paciente)
+    }
+  }, [])
 
   const fetchData = async () => {
     try {
@@ -415,7 +431,13 @@ export default function PlanesPage() {
         </div>
       )}
 
-      <ModalNuevoPlan open={modalOpen} onClose={() => setModalOpen(false)} pacientes={pacientes} onSave={fetchData} />
+      <ModalNuevoPlan
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        pacientes={pacientes}
+        onSave={fetchData}
+        initialPacienteId={initialPacienteId}
+      />
     </div>
   )
 }

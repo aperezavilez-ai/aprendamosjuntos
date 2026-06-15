@@ -16,6 +16,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 import type { Cita, Paciente, Usuario } from '@/types'
 
 const locales = { es }
@@ -38,6 +39,7 @@ const COLORS_ESTADO: Record<string, string> = {
 
 interface EventoCita extends Event {
   id: string
+  paciente_id: string
   estado: string
   tipo: string
   pacienteNombre: string
@@ -230,6 +232,7 @@ export default function AgendaPage() {
   const [terapeutas, setTerapeutas] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     fetchData()
@@ -272,7 +275,7 @@ export default function AgendaPage() {
     const { data } = await supabase
       .from('citas')
       .select(`
-        id, fecha_inicio, fecha_fin, estado, tipo, notas_cita, duracion_minutos,
+        id, paciente_id, fecha_inicio, fecha_fin, estado, tipo, notas_cita, duracion_minutos,
         paciente:pacientes(nombre, apellidos),
         terapeuta:usuarios(nombre, apellidos)
       `)
@@ -285,6 +288,7 @@ export default function AgendaPage() {
       setEventos(
         data.map((c: any) => ({
           id: c.id,
+          paciente_id: c.paciente_id,
           title: `${c.paciente?.nombre} ${c.paciente?.apellidos}`,
           start: new Date(c.fecha_inicio),
           end: new Date(c.fecha_fin),
@@ -331,6 +335,28 @@ export default function AgendaPage() {
       toast.error('Error al agendar la cita')
       console.error(err)
     }
+  }
+
+  const cancelarCita = async (citaId: string) => {
+    if (!confirm('¿Cancelar esta cita?')) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
+      if (!usuario) return
+
+      const { error } = await supabase.from('citas').update({ estado: 'cancelada' }).eq('id', citaId)
+      if (error) throw error
+      toast.success('Cita cancelada')
+      setEventoSeleccionado(null)
+      await fetchCitas(usuario.clinica_id)
+    } catch {
+      toast.error('Error al cancelar')
+    }
+  }
+
+  const registrarSesion = (evento: EventoCita) => {
+    router.push(`/sesiones/nueva?paciente=${evento.paciente_id}&cita=${evento.id}`)
   }
 
   const eventStyleGetter = (event: EventoCita) => ({
@@ -491,8 +517,20 @@ export default function AgendaPage() {
                 {eventoSeleccionado.terapeuta}
               </div>
               <div className="pt-3 flex gap-2">
-                <button className="btn-secondary flex-1 btn-sm">Cancelar cita</button>
-                <button className="btn-primary flex-1 btn-sm">Registrar sesión</button>
+                <button
+                  type="button"
+                  onClick={() => cancelarCita(eventoSeleccionado.id)}
+                  className="btn-secondary flex-1 btn-sm"
+                >
+                  Cancelar cita
+                </button>
+                <button
+                  type="button"
+                  onClick={() => registrarSesion(eventoSeleccionado)}
+                  className="btn-primary flex-1 btn-sm"
+                >
+                  Registrar sesión
+                </button>
               </div>
             </div>
           </div>

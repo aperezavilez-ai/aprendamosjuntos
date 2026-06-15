@@ -136,8 +136,24 @@ export default function ConfiguracionPage() {
       toast.error('Completa los campos obligatorios')
       return
     }
-    toast.success('Invitación enviada por email (funcionalidad de producción)')
-    setModalUsuario(false)
+    setGuardando(true)
+    try {
+      const res = await fetch('/api/staff/invitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formUsuario),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al invitar')
+      toast.success(`Usuario creado. Email: ${data.email} · Contraseña: ${data.password}`, { duration: 8000 })
+      setModalUsuario(false)
+      setFormUsuario({ nombre: '', apellidos: '', email: '', rol: 'terapeuta', telefono: '' })
+      fetchData()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al invitar')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   const crearSucursal = async () => {

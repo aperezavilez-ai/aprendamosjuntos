@@ -34,16 +34,20 @@ function ModalSesion({
   pacientes,
   planes,
   onSave,
+  initialPacienteId = '',
+  initialPlanId = '',
 }: {
   open: boolean
   onClose: () => void
   pacientes: Paciente[]
   planes: PlanTerapeutico[]
   onSave: () => void
+  initialPacienteId?: string
+  initialPlanId?: string
 }) {
   const [form, setForm] = useState({
-    paciente_id: '',
-    plan_id: '',
+    paciente_id: initialPacienteId,
+    plan_id: initialPlanId,
     fecha: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
     duracion_minutos: 60,
     actividades: '',
@@ -59,6 +63,16 @@ function ModalSesion({
   const [guardando, setGuardando] = useState(false)
   const recognitionRef = useRef<any>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    if (open) {
+      setForm(f => ({
+        ...f,
+        paciente_id: initialPacienteId || f.paciente_id,
+        plan_id: initialPlanId || f.plan_id,
+      }))
+    }
+  }, [open, initialPacienteId, initialPlanId])
 
   // Planes filtrados por paciente
   const planesFiltrados = planes.filter(p => p.paciente_id === form.paciente_id)
@@ -308,10 +322,22 @@ export default function SesionesPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [planes, setPlanes] = useState<PlanTerapeutico[]>([])
   const [modalOpen, setModalOpen] = useState(false)
+  const [initialPacienteId, setInitialPacienteId] = useState('')
+  const [initialPlanId, setInitialPlanId] = useState('')
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    fetchData()
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('nueva') === '1') {
+      setModalOpen(true)
+      const paciente = params.get('paciente')
+      const plan = params.get('plan')
+      if (paciente) setInitialPacienteId(paciente)
+      if (plan) setInitialPlanId(plan)
+    }
+  }, [])
 
   const fetchData = async () => {
     try {
@@ -443,6 +469,8 @@ export default function SesionesPage() {
         pacientes={pacientes}
         planes={planes}
         onSave={fetchData}
+        initialPacienteId={initialPacienteId}
+        initialPlanId={initialPlanId}
       />
     </div>
   )

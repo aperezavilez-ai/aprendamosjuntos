@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { format, differenceInYears } from 'date-fns'
 import { es } from 'date-fns/locale'
+import toast from 'react-hot-toast'
 import type { Paciente, Familiar, ArchivoPaciente, Cita, Evaluacion, PlanTerapeutico } from '@/types'
 
 type Tab = 'expediente' | 'clinico' | 'familiares' | 'citas' | 'evaluaciones' | 'planes' | 'sesiones' | 'archivos'
@@ -259,7 +260,7 @@ export default function ExpedientePaciente() {
           <TabClinico paciente={paciente} />
         )}
         {tabActiva === 'familiares' && (
-          <TabFamiliares familiares={familiares} pacienteId={paciente.id} />
+          <TabFamiliares familiares={familiares} pacienteId={paciente.id} onRefresh={fetchExpediente} />
         )}
         {tabActiva === 'citas' && (
           <TabCitas citas={citas} pacienteId={paciente.id} />
@@ -406,7 +407,27 @@ function TabClinico({ paciente }: { paciente: Paciente }) {
 // ============================================================
 // TAB: FAMILIARES
 // ============================================================
-function TabFamiliares({ familiares, pacienteId }: { familiares: Familiar[], pacienteId: string }) {
+function TabFamiliares({
+  familiares,
+  pacienteId,
+  onRefresh,
+}: {
+  familiares: Familiar[]
+  pacienteId: string
+  onRefresh: () => void
+}) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [activando, setActivando] = useState<string | null>(null)
+  const [form, setForm] = useState({
+    nombre: '',
+    apellidos: '',
+    tipo_relacion: 'madre',
+    telefono: '',
+    email: '',
+    dar_acceso_portal: true,
+  })
+  const supabase = createClient()
+
   const tipoLabel: Record<string, string> = {
     padre: 'Padre',
     madre: 'Madre',
@@ -414,11 +435,86 @@ function TabFamiliares({ familiares, pacienteId }: { familiares: Familiar[], pac
     emergencia: 'Contacto de emergencia',
   }
 
+  const agregarContacto = async () => {
+    if (!form.nombre || !form.telefono) {
+      toast.error('Nombre y teléfono son obligatorios')
+      return
+    }
+    try {
+      const { data: familiar, error } = await supabase.from('familiares').insert({
+        paciente_id: pacienteId,
+        tipo_relacion: form.tipo_relacion,
+        nombre: form.nombre.trim(),
+        apellidos: form.apellidos.trim() || null,
+        telefono: form.telefono.trim(),
+        email: form.email.trim() || null,
+        tiene_acceso_portal: form.dar_acceso_portal,
+        es_contacto_principal: familiares.length === 0,
+      }).select().single()
+
+      if (error) throw error
+
+      if (form.dar_acceso_portal && form.email && familiar) {
+        const res = await fetch('/api/padres/crear-acceso', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.email,
+            nombre: form.nombre,
+            apellidos: form.apellidos,
+            familiar_id: familiar.id,
+            paciente_id: pacienteId,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error)
+        toast.success(`Portal activado. Email: ${data.email} · Contraseña: ${data.password}`, { duration: 8000 })
+      } else {
+        toast.success('Contacto agregado')
+      }
+
+      setModalOpen(false)
+      setForm({ nombre: '', apellidos: '', tipo_relacion: 'madre', telefono: '', email: '', dar_acceso_portal: true })
+      onRefresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al agregar contacto')
+    }
+  }
+
+  const activarPortal = async (familiar: Familiar) => {
+    if (!familiar.email) {
+      toast.error('El familiar necesita un email para acceder al portal')
+      return
+    }
+    setActivando(familiar.id)
+    try {
+      const res = await fetch('/api/padres/crear-acceso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: familiar.email,
+          nombre: familiar.nombre,
+          apellidos: familiar.apellidos,
+          familiar_id: familiar.id,
+          paciente_id: pacienteId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast.success(`Portal activado. Email: ${data.email} · Contraseña: ${data.password}`, { duration: 8000 })
+      onRefresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al activar portal')
+    } finally {
+      setActivando(null)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-neutral-500">{familiares.length} contactos registrados</p>
-        <button className="btn-primary btn-sm">
+        <button type="button" onClick={() => setModalOpen(true)} className="btn-primary btn-sm">
           <PlusIcon className="w-4 h-4" />
           Agregar contacto
         </button>
@@ -455,25 +551,68 @@ function TabFamiliares({ familiares, pacienteId }: { familiares: Familiar[], pac
                   {f.email}
                 </a>
               )}
-              {f.ocupacion && (
-                <p className="text-xs text-neutral-400 flex items-center gap-2">
-                  <AcademicCapIcon className="w-4 h-4" />
-                  {f.ocupacion}
-                </p>
-              )}
             </div>
             <div className="mt-3 flex items-center gap-2">
               {f.tiene_acceso_portal ? (
                 <span className="badge badge-success text-2xs">Con acceso al portal</span>
               ) : (
-                <button className="text-xs text-primary-600 hover:underline">
-                  Activar acceso portal
+                <button
+                  type="button"
+                  disabled={activando === f.id}
+                  onClick={() => activarPortal(f)}
+                  className="text-xs text-primary-600 hover:underline disabled:opacity-50"
+                >
+                  {activando === f.id ? 'Activando...' : 'Activar acceso portal'}
                 </button>
               )}
             </div>
           </div>
         ))}
       </div>
+
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setModalOpen(false)} />
+          <div className="relative card p-6 w-full max-w-md space-y-4">
+            <h3 className="font-semibold text-neutral-900">Agregar contacto familiar</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Nombre *</label>
+                <input className="input" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Apellidos</label>
+                <input className="input" value={form.apellidos} onChange={e => setForm(f => ({ ...f, apellidos: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="label">Relación</label>
+              <select className="input" value={form.tipo_relacion} onChange={e => setForm(f => ({ ...f, tipo_relacion: e.target.value }))}>
+                <option value="madre">Madre</option>
+                <option value="padre">Padre</option>
+                <option value="tutor">Tutor</option>
+                <option value="emergencia">Emergencia</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Teléfono *</label>
+              <input className="input" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Email (para portal)</label>
+              <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.dar_acceso_portal} onChange={e => setForm(f => ({ ...f, dar_acceso_portal: e.target.checked }))} />
+              Crear acceso al portal de familias
+            </label>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary flex-1">Cancelar</button>
+              <button type="button" onClick={agregarContacto} className="btn-primary flex-1">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

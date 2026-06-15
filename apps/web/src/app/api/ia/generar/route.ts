@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const { data: staff } = await supabase.from('usuarios').select('rol').eq('id', user.id).single()
+  if (!staff || staff.rol === 'padre') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
   const client = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   })
