@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import {
   BuildingOffice2Icon,
@@ -49,8 +50,19 @@ export default function ConfiguracionPage() {
   const [formUsuario, setFormUsuario] = useState({ nombre: '', apellidos: '', email: '', rol: 'terapeuta', telefono: '' })
   const [formSucursal, setFormSucursal] = useState({ nombre: '', direccion: '', ciudad: '', estado: '', telefono: '' })
   const supabase = createClientComponentClient()
+  const searchParams = useSearchParams()
 
   useEffect(() => { fetchData() }, [])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabConfig | null
+    if (tab && tabsConfig.some(t => t.id === tab)) {
+      setTabActiva(tab)
+    }
+    if (searchParams.get('nuevo') === '1' && tab === 'usuarios') {
+      setModalUsuario(true)
+    }
+  }, [searchParams])
 
   const fetchData = async () => {
     try {

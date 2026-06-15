@@ -22,6 +22,7 @@ import {
   BuildingOffice2Icon,
   SparklesIcon,
   ChevronDownIcon,
+  UserPlusIcon,
 } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import type { Usuario } from '@/types'
@@ -174,7 +175,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </nav>
 
       {/* Usuario */}
-      <div className="px-3 py-3 border-t border-neutral-100">
+      <div className="px-3 py-3 border-t border-neutral-100 space-y-2">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-50 transition-colors">
           <div className="avatar-sm text-xs" style={{ background: 'var(--color-primary)' }}>
             {user?.foto_url ? (
@@ -202,6 +203,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
           </button>
         </div>
+
+        {user?.rol && user.rol !== 'padre' && (
+          <Link
+            href="/configuracion?tab=usuarios&nuevo=1"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-lg text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors"
+          >
+            <UserPlusIcon className="w-3.5 h-3.5 shrink-0" />
+            Agregar usuario
+          </Link>
+        )}
       </div>
     </div>
   )
