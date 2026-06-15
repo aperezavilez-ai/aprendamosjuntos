@@ -10,6 +10,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.aprendamosjuntos.mx'),
   title: {
     template: '%s | Aprendamos Juntos',
     default: 'Aprendamos Juntos — Plataforma de Terapia Ocupacional Infantil',
