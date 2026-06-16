@@ -296,6 +296,8 @@ export default function ConfiguracionPage() {
     } catch { toast.error('Error al crear sucursal') }
   }
 
+  const usuariosVisibles = usuarios.filter(u => u.rol !== 'admin_general')
+
   if (loading) return (
     <div className="space-y-6">
       <div className="skeleton h-10 w-80" />
@@ -437,14 +439,14 @@ export default function ConfiguracionPage() {
           {tabActiva === 'usuarios' && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <p className="text-sm text-neutral-500">{usuarios.length} usuarios</p>
+                <p className="text-sm text-neutral-500">{usuariosVisibles.length} usuarios</p>
                 <button onClick={abrirAgregarUsuario} className="btn-primary btn-sm">
                   <PlusIcon className="w-4 h-4" /> Agregar usuario
                 </button>
               </div>
               <div className="card overflow-hidden">
                 <div className="divide-y divide-neutral-100">
-                  {usuarios.map(usr => (
+                  {usuariosVisibles.map(usr => (
                     <div key={usr.id} className="flex items-center gap-4 px-5 py-4">
                       <div className="avatar avatar-sm shrink-0">{usr.nombre[0]}</div>
                       <div className="flex-1 min-w-0">
