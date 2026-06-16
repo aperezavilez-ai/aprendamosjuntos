@@ -185,9 +185,12 @@ ${instrucciones ? `INSTRUCCIONES ADICIONALES: ${instrucciones}` : ''}
         }),
       })
 
-      if (!response.ok) throw new Error('Error en la API de IA')
+      const responseData = await response.json()
+      if (!response.ok) {
+        throw new Error(responseData?.error || 'Error en la API de IA')
+      }
 
-      const { contenido, tokens } = await response.json()
+      const { contenido, tokens } = responseData
 
       // Guardar reporte en la base de datos
       const fechaInicio = new Date()
@@ -218,7 +221,11 @@ ${instrucciones ? `INSTRUCCIONES ADICIONALES: ${instrucciones}` : ''}
 
     } catch (err) {
       console.error('Error generando reporte:', err)
-      toast.error('Error al generar el reporte. Verifica la configuración de IA.')
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Error al generar el reporte. Verifica la configuración de IA.'
+      toast.error(message)
     } finally {
       setGenerando(false)
     }

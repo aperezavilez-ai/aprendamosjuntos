@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "generate:icons": "node scripts/generate-icons.mjs",
     "seed:demo": "node --env-file=.env.local scripts/seed-clinica-completa.mjs",
-    "migrations:verify": "node --env-file=.env.local scripts/verify-prod-migrations.mjs"
+    "migrations:verify": "node --env-file=.env.local scripts/verify-prod-migrations.mjs",
+    "ia:smoke": "node --env-file=.env.local scripts/smoke-ia.mjs"
   },
   "dependencies": {
     "next": "^14.2.0",
