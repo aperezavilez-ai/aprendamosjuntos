@@ -13,16 +13,31 @@ import {
   PlusIcon,
   PencilIcon,
   XMarkIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
-import type { Clinica, Sucursal, Usuario } from '@/types'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
+import type { Clinica, Sucursal, Usuario, Paciente } from '@/types'
 
-type TabConfig = 'clinica' | 'sucursales' | 'usuarios' | 'whatsapp' | 'notificaciones' | 'seguridad'
+type TabConfig = 'clinica' | 'sucursales' | 'usuarios' | 'encuestas' | 'whatsapp' | 'notificaciones' | 'seguridad'
+
+interface EncuestaRow {
+  id: string
+  periodo: string
+  puntuacion: number | null
+  comentarios: string | null
+  respondida: boolean
+  token: string
+  created_at: string
+  paciente: { nombre: string; apellidos: string } | null
+}
 
 const tabsConfig: { id: TabConfig; label: string; icon: any }[] = [
   { id: 'clinica', label: 'Mi clínica', icon: BuildingOffice2Icon },
   { id: 'sucursales', label: 'Sucursales', icon: BuildingOffice2Icon },
   { id: 'usuarios', label: 'Usuarios', icon: UserGroupIcon },
+  { id: 'encuestas', label: 'Encuestas', icon: StarIcon },
   { id: 'whatsapp', label: 'WhatsApp', icon: PhoneIcon },
   { id: 'notificaciones', label: 'Notificaciones', icon: BellIcon },
   { id: 'seguridad', label: 'Seguridad', icon: ShieldCheckIcon },
@@ -62,6 +77,9 @@ export default function ConfiguracionPage() {
   const [modalSucursal, setModalSucursal] = useState(false)
   const [formUsuario, setFormUsuario] = useState({ nombre: '', apellidos: '', email: '', rol: 'terapeuta', telefono: '' })
   const [formSucursal, setFormSucursal] = useState({ nombre: '', direccion: '', ciudad: '', estado: '', telefono: '' })
+  const [encuestas, setEncuestas] = useState<EncuestaRow[]>([])
+  const [pacientesActivos, setPacientesActivos] = useState<Paciente[]>([])
+  const [formEncuesta, setFormEncuesta] = useState({ paciente_id: '', periodo: format(new Date(), 'MMMM yyyy', { locale: es }) })
   const supabase = createClient()
 
   useEffect(() => { fetchData() }, [])
@@ -89,11 +107,13 @@ export default function ConfiguracionPage() {
       const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
       if (!usuario) return
 
-      const [clinRes, sucRes, usrRes, waRes] = await Promise.all([
+      const [clinRes, sucRes, usrRes, waRes, encRes, pacRes] = await Promise.all([
         supabase.from('clinicas').select('*').eq('id', usuario.clinica_id).single(),
         supabase.from('sucursales').select('*').eq('clinica_id', usuario.clinica_id).order('nombre'),
         supabase.from('usuarios').select('*').eq('clinica_id', usuario.clinica_id).order('nombre'),
         supabase.from('config_whatsapp').select('*').eq('clinica_id', usuario.clinica_id).maybeSingle(),
+        supabase.from('encuestas_satisfaccion').select('*, paciente:pacientes(nombre, apellidos)').eq('clinica_id', usuario.clinica_id).order('created_at', { ascending: false }).limit(50),
+        supabase.from('pacientes').select('id, nombre, apellidos').eq('clinica_id', usuario.clinica_id).eq('activo', true).order('nombre'),
       ])
 
       if (clinRes.data) {
@@ -106,6 +126,8 @@ export default function ConfiguracionPage() {
       }
       setSucursales((sucRes.data || []) as Sucursal[])
       setUsuarios((usrRes.data || []) as Usuario[])
+      setEncuestas((encRes.data || []) as unknown as EncuestaRow[])
+      setPacientesActivos((pacRes.data || []) as Paciente[])
       if (waRes.data) setConfigWA({
         phone_number_id: waRes.data.phone_number_id || '',
         access_token: waRes.data.access_token || '',
@@ -274,6 +296,42 @@ export default function ConfiguracionPage() {
     } finally {
       setGuardando(false)
     }
+  }
+
+  const crearEncuesta = async () => {
+    if (!clinica || !formEncuesta.paciente_id) {
+      toast.error('Selecciona un paciente')
+      return
+    }
+    try {
+      const { data: familiar } = await supabase
+        .from('familiares')
+        .select('id')
+        .eq('paciente_id', formEncuesta.paciente_id)
+        .order('es_contacto_principal', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const { error } = await supabase.from('encuestas_satisfaccion').insert({
+        clinica_id: clinica.id,
+        paciente_id: formEncuesta.paciente_id,
+        familiar_id: familiar?.id || null,
+        periodo: formEncuesta.periodo.trim(),
+        respondida: false,
+      })
+      if (error) throw error
+      toast.success('Encuesta creada')
+      setFormEncuesta((f) => ({ ...f, paciente_id: '' }))
+      fetchData()
+    } catch {
+      toast.error('Error al crear encuesta')
+    }
+  }
+
+  const copiarEnlaceEncuesta = (token: string) => {
+    const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    navigator.clipboard.writeText(`${base}/encuesta/${token}`)
+    toast.success('Enlace copiado al portapapeles')
   }
 
   const crearSucursal = async () => {
@@ -489,6 +547,109 @@ export default function ConfiguracionPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: ENCUESTAS */}
+          {tabActiva === 'encuestas' && (
+            <div className="space-y-4">
+              <div className="card p-6 space-y-4">
+                <h2 className="text-sm font-semibold text-neutral-900 border-b border-neutral-100 pb-3">
+                  Nueva encuesta de satisfacción
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Paciente</label>
+                    <select
+                      className="input"
+                      value={formEncuesta.paciente_id}
+                      onChange={(e) => setFormEncuesta((f) => ({ ...f, paciente_id: e.target.value }))}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {pacientesActivos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nombre} {p.apellidos}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Periodo</label>
+                    <input
+                      className="input"
+                      value={formEncuesta.periodo}
+                      onChange={(e) => setFormEncuesta((f) => ({ ...f, periodo: e.target.value }))}
+                      placeholder="Ej: junio 2026"
+                    />
+                  </div>
+                </div>
+                <button type="button" onClick={crearEncuesta} className="btn-primary btn-sm">
+                  <PlusIcon className="w-4 h-4" /> Crear encuesta
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="card p-4 text-center">
+                  <p className="text-2xl font-bold text-neutral-900">{encuestas.length}</p>
+                  <p className="text-2xs text-neutral-500">Total</p>
+                </div>
+                <div className="card p-4 text-center">
+                  <p className="text-2xl font-bold text-success-600">
+                    {encuestas.filter((e) => e.respondida).length}
+                  </p>
+                  <p className="text-2xs text-neutral-500">Respondidas</p>
+                </div>
+                <div className="card p-4 text-center col-span-2 sm:col-span-1">
+                  <p className="text-2xl font-bold text-primary-600">
+                    {encuestas.filter((e) => e.respondida && e.puntuacion).length
+                      ? (
+                          encuestas
+                            .filter((e) => e.respondida && e.puntuacion)
+                            .reduce((s, e) => s + (e.puntuacion || 0), 0) /
+                          encuestas.filter((e) => e.respondida && e.puntuacion).length
+                        ).toFixed(1)
+                      : '—'}
+                  </p>
+                  <p className="text-2xs text-neutral-500">Promedio / 10</p>
+                </div>
+              </div>
+
+              <div className="card overflow-hidden">
+                <div className="divide-y divide-neutral-100">
+                  {encuestas.map((enc) => (
+                    <div key={enc.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-neutral-900">
+                          {enc.paciente ? `${enc.paciente.nombre} ${enc.paciente.apellidos || ''}` : 'Paciente'}
+                        </p>
+                        <p className="text-xs text-neutral-500">{enc.periodo}</p>
+                        {enc.comentarios && (
+                          <p className="text-xs text-neutral-600 mt-1 italic truncate">&ldquo;{enc.comentarios}&rdquo;</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {enc.respondida ? (
+                          <span className="badge badge-success text-2xs">{enc.puntuacion}/10</span>
+                        ) : (
+                          <span className="badge badge-neutral text-2xs">Pendiente</span>
+                        )}
+                        {enc.token && (
+                          <button
+                            type="button"
+                            onClick={() => copiarEnlaceEncuesta(enc.token)}
+                            className="btn-secondary btn-sm text-2xs"
+                          >
+                            Copiar enlace
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {encuestas.length === 0 && (
+                    <p className="text-sm text-neutral-500 text-center py-10">Sin encuestas registradas</p>
+                  )}
                 </div>
               </div>
             </div>

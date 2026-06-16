@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/callback', '/auth/nueva-contrasena']
+const PUBLIC_PATHS = ['/auth/login', '/auth/registro', '/auth/callback', '/auth/nueva-contrasena', '/offline']
 
 async function getUserRol(supabase: ReturnType<typeof createServerClient>, userId: string) {
   const { data } = await supabase.from('usuarios').select('rol').eq('id', userId).maybeSingle()
@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
 
   const isPublic =
     pathname === '/' ||
+    pathname.startsWith('/encuesta/') ||
     PUBLIC_PATHS.some(p => pathname.startsWith(p)) ||
     pathname.startsWith('/api/')
 
@@ -92,6 +93,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icons|brand|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json|icons|brand|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

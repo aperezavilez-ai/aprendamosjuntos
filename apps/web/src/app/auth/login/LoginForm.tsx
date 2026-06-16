@@ -207,6 +207,14 @@ export default function LoginForm() {
         <p className="text-center text-xs text-neutral-400 mt-6">
           Aprendamos Juntos © {new Date().getFullYear()} · Sistema de gestión clínica
         </p>
+        {modo === 'login' && (
+          <p className="text-center text-sm text-neutral-500 mt-3">
+            ¿Nueva clínica?{' '}
+            <a href="/auth/registro" className="text-primary-600 font-medium hover:underline">
+              Registrar mi clínica
+            </a>
+          </p>
+        )}
       </div>
     </div>
   )

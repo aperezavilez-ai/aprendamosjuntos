@@ -7,6 +7,7 @@ import {
   DocumentTextIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase/client'
 import Logo from '@/components/brand/Logo'
@@ -15,6 +16,7 @@ const NAV = [
   { href: '/portal/citas', label: 'Citas', icon: CalendarDaysIcon },
   { href: '/portal/reportes', label: 'Reportes', icon: DocumentTextIcon },
   { href: '/portal/mensajes', label: 'Mensajes', icon: ChatBubbleLeftRightIcon },
+  { href: '/portal/encuesta', label: 'Encuesta', icon: StarIcon },
   { href: '/portal/perfil', label: 'Perfil', icon: UserCircleIcon },
 ]
 

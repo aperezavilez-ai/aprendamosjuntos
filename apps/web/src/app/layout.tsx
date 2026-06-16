@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
+import PwaRegister from '@/components/PwaRegister'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -71,6 +72,7 @@ export default function RootLayout({
       </head>
       <body className="bg-neutral-50 text-neutral-900 antialiased">
         {children}
+        <PwaRegister />
         <Toaster
           position="top-right"
           toastOptions={{

@@ -1,12 +1,11 @@
-const CACHE_NAME = 'aprendamos-juntos-v1'
-const STATIC_CACHE = 'aprendamos-static-v1'
+const CACHE_NAME = 'aprendamos-juntos-v2'
+const STATIC_CACHE = 'aprendamos-static-v2'
 
 const STATIC_ASSETS = [
-  '/',
-  '/dashboard',
-  '/pacientes',
-  '/agenda',
   '/offline',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/manifest.json',
 ]
 
 // Instalar el SW y cachear recursos estáticos
@@ -87,9 +86,10 @@ self.addEventListener('fetch', (event) => {
       .catch(() => {
         return caches.match(request).then((cached) => {
           if (cached) return cached
-          // Página offline genérica
           if (request.headers.get('accept')?.includes('text/html')) {
-            return new Response(
+            return caches.match('/offline').then((offlinePage) => {
+              if (offlinePage) return offlinePage
+              return new Response(
               `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -114,8 +114,9 @@ self.addEventListener('fetch', (event) => {
   </div>
 </body>
 </html>`,
-              { headers: { 'Content-Type': 'text/html' } }
-            )
+                { headers: { 'Content-Type': 'text/html' } }
+              )
+            })
           }
           return new Response('Offline', { status: 503 })
         })

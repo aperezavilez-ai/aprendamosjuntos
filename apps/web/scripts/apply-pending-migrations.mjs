@@ -17,7 +17,7 @@ const DB_URL = process.env.SUPABASE_DB_URL
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const migrationsDir = join(__dirname, '../../../supabase/migrations')
 
-const PENDING = ['003_storage_archivos.sql', '004_rls_staff_clinico.sql']
+const PENDING = ['003_storage_archivos.sql', '004_rls_staff_clinico.sql', '005_encuestas_padres_onboarding.sql']
 
 async function ensureBucket() {
   if (!SUPABASE_URL || !SERVICE_KEY) return
