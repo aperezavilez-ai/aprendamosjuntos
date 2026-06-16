@@ -45,8 +45,8 @@ export default function NuevaContrasenaPage() {
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Logo iconSize="lg" showText={false} href={null} className="justify-center mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-neutral-900">Nueva contraseña</h1>
+          <Logo iconSize="xl" href={null} className="justify-center mx-auto mb-2" />
+          <h1 className="text-xl font-bold text-neutral-900 mt-2">Nueva contraseña</h1>
           <p className="text-neutral-500 text-sm mt-1">Elige una contraseña segura</p>
         </div>
 

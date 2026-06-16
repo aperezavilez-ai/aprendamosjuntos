@@ -37,9 +37,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       <header className="bg-gradient-to-r from-primary-600 to-secondary-600 text-white px-4 pt-8 pb-6 shrink-0">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
-            <Logo href="/portal/citas" showText={false} iconSize="sm" className="mb-2" />
-            <p className="text-primary-100 text-xs font-medium">Portal Familias</p>
-            <h1 className="text-lg font-bold mt-0.5">Aprendamos Juntos</h1>
+            <Logo
+              href="/portal/citas"
+              iconSize="md"
+              align="start"
+              variant="light"
+              subtitle="Portal Familias"
+            />
           </div>
           <button
             type="button"

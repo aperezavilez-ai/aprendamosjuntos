@@ -8,6 +8,10 @@ interface LogoProps {
   iconSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   className?: string
   showText?: boolean
+  /** stacked: imagen arriba del texto; inline: imagen al lado */
+  layout?: 'stacked' | 'inline'
+  align?: 'start' | 'center'
+  variant?: 'default' | 'light'
 }
 
 export default function Logo({
@@ -16,15 +20,31 @@ export default function Logo({
   iconSize = 'sm',
   className,
   showText = true,
+  layout = 'stacked',
+  align = 'center',
+  variant = 'default',
 }: LogoProps) {
   const content = (
     <>
-      <LogoIcon size={iconSize} className="shadow-sm" />
+      <LogoIcon size={iconSize} className="drop-shadow-sm" />
       {showText && (
-        <div className="min-w-0">
-          <p className="font-semibold text-neutral-900 text-sm leading-none">Aprendamos Juntos</p>
+        <div className={clsx('min-w-0', align === 'center' ? 'text-center' : 'text-left')}>
+          <p
+            className={clsx(
+              'font-semibold leading-tight',
+              variant === 'light' ? 'text-white' : 'text-neutral-900',
+              iconSize === 'xl' ? 'text-xl' : iconSize === 'lg' ? 'text-lg' : 'text-sm'
+            )}
+          >
+            Aprendamos Juntos
+          </p>
           {subtitle && (
-            <p className="text-2xs text-neutral-400 mt-0.5 leading-none truncate max-w-[130px]">
+            <p
+              className={clsx(
+                'text-2xs mt-0.5 leading-none truncate max-w-[160px]',
+                variant === 'light' ? 'text-primary-100' : 'text-neutral-400'
+              )}
+            >
               {subtitle}
             </p>
           )}
@@ -33,7 +53,13 @@ export default function Logo({
     </>
   )
 
-  const wrapperClass = clsx('flex items-center gap-2.5 group', className)
+  const wrapperClass = clsx(
+    'group',
+    layout === 'stacked'
+      ? clsx('flex flex-col gap-1.5', align === 'start' ? 'items-start' : 'items-center')
+      : clsx('flex items-center gap-2.5', align === 'start' ? 'justify-start' : 'justify-center'),
+    className
+  )
 
   if (href) {
     return (

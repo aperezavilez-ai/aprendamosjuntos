@@ -113,7 +113,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-neutral-100">
-        <Logo href="/dashboard" subtitle={clinicaNombre} iconSize="sm" />
+        <Logo href="/dashboard" subtitle={clinicaNombre} iconSize="sm" align="start" />
       </div>
 
       {/* Navegación principal */}
