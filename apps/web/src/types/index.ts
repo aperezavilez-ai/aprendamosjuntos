@@ -2,7 +2,15 @@
 
 export type RolUsuario = 'admin_general' | 'director_clinico' | 'recepcion' | 'terapeuta' | 'padre'
 export type EstadoCita = 'programada' | 'confirmada' | 'completada' | 'cancelada' | 'no_asistio'
-export type TipoEvaluacion = 'motricidad_fina' | 'motricidad_gruesa' | 'integracion_sensorial' | 'atencion' | 'conducta' | 'cognitivo'
+export type TipoEvaluacion =
+  | 'motricidad_fina'
+  | 'motricidad_gruesa'
+  | 'integracion_sensorial'
+  | 'atencion'
+  | 'conducta'
+  | 'cognitivo'
+  | 'lenguaje'
+  | 'socioafectivo'
 export type EstadoObjetivo = 'pendiente' | 'en_progreso' | 'logrado' | 'cancelado'
 export type EstadoPago = 'pendiente' | 'pagado' | 'vencido' | 'parcial' | 'cancelado'
 export type TipoReporteIA = 'reporte' | 'resumen' | 'tareas' | 'analisis' | 'patrones'

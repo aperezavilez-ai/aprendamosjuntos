@@ -343,14 +343,40 @@ export default function SesionesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
+      const { data: usuario } = await supabase
+        .from('usuarios')
+        .select('clinica_id, rol')
+        .eq('id', session.user.id)
+        .single()
       if (!usuario) return
 
-      const [seisRes, pacsRes, planesRes] = await Promise.all([
-        supabase.from('sesiones').select(`*, paciente:pacientes(nombre, apellidos), terapeuta:usuarios(nombre), plan:planes_terapeuticos(titulo)`).eq('clinica_id', usuario.clinica_id).order('fecha', { ascending: false }).limit(50),
-        supabase.from('pacientes').select('id, nombre, apellidos').eq('clinica_id', usuario.clinica_id).eq('activo', true).order('nombre'),
-        supabase.from('planes_terapeuticos').select('id, titulo, paciente_id').eq('clinica_id', usuario.clinica_id).eq('estado', 'activo'),
-      ])
+      const sesionesQuery = supabase
+        .from('sesiones')
+        .select(`*, paciente:pacientes(nombre, apellidos), terapeuta:usuarios(nombre), plan:planes_terapeuticos(titulo)`)
+        .eq('clinica_id', usuario.clinica_id)
+        .order('fecha', { ascending: false })
+        .limit(50)
+
+      const pacientesQuery = supabase
+        .from('pacientes')
+        .select('id, nombre, apellidos')
+        .eq('clinica_id', usuario.clinica_id)
+        .eq('activo', true)
+        .order('nombre')
+
+      const planesQuery = supabase
+        .from('planes_terapeuticos')
+        .select('id, titulo, paciente_id')
+        .eq('clinica_id', usuario.clinica_id)
+        .eq('estado', 'activo')
+
+      if (usuario.rol === 'terapeuta') {
+        sesionesQuery.eq('terapeuta_id', session.user.id)
+        pacientesQuery.eq('terapeuta_asignado_id', session.user.id)
+        planesQuery.eq('terapeuta_id', session.user.id)
+      }
+
+      const [seisRes, pacsRes, planesRes] = await Promise.all([sesionesQuery, pacientesQuery, planesQuery])
 
       setSesiones((seisRes.data || []) as unknown as Sesion[])
       setPacientes((pacsRes.data || []) as Paciente[])

@@ -278,15 +278,31 @@ export default function AgendaPage() {
       if (!usuario) return
 
       // Cargar pacientes y terapeutas en paralelo
-      const [pacientesRes, terapeutasRes] = await Promise.all([
-        supabase.from('pacientes').select('id, nombre, apellidos').eq('clinica_id', usuario.clinica_id).eq('activo', true).order('nombre'),
-        supabase.from('usuarios').select('id, nombre, apellidos').eq('clinica_id', usuario.clinica_id).in('rol', ['terapeuta', 'director_clinico']).eq('activo', true),
-      ])
+      const pacientesQuery = supabase
+        .from('pacientes')
+        .select('id, nombre, apellidos')
+        .eq('clinica_id', usuario.clinica_id)
+        .eq('activo', true)
+        .order('nombre')
+
+      const terapeutasQuery = supabase
+        .from('usuarios')
+        .select('id, nombre, apellidos')
+        .eq('clinica_id', usuario.clinica_id)
+        .in('rol', ['terapeuta', 'director_clinico'])
+        .eq('activo', true)
+
+      if (usuario.rol === 'terapeuta') {
+        pacientesQuery.eq('terapeuta_asignado_id', session.user.id)
+        terapeutasQuery.eq('id', session.user.id)
+      }
+
+      const [pacientesRes, terapeutasRes] = await Promise.all([pacientesQuery, terapeutasQuery])
 
       setPacientes((pacientesRes.data || []) as Paciente[])
       setTerapeutas((terapeutasRes.data || []) as Usuario[])
 
-      await fetchCitas(usuario.clinica_id)
+      await fetchCitas(usuario.clinica_id, usuario.rol, session.user.id)
     } catch (err) {
       console.error('Error fetching agenda:', err)
     } finally {
@@ -294,12 +310,12 @@ export default function AgendaPage() {
     }
   }
 
-  const fetchCitas = async (clinicaId: string) => {
+  const fetchCitas = async (clinicaId: string, rol?: string, userId?: string) => {
     const inicio = startOfWeek(fechaActual, { weekStartsOn: 1 })
     const fin = new Date(inicio)
     fin.setDate(fin.getDate() + 30)
 
-    const { data } = await supabase
+    const query = supabase
       .from('citas')
       .select(`
         id, paciente_id, terapeuta_id, fecha_inicio, fecha_fin, estado, tipo, notas_cita, duracion_minutos, sala, costo,
@@ -310,6 +326,12 @@ export default function AgendaPage() {
       .gte('fecha_inicio', inicio.toISOString())
       .lte('fecha_inicio', fin.toISOString())
       .not('estado', 'in', '("cancelada","no_asistio")')
+
+    if (rol === 'terapeuta' && userId) {
+      query.eq('terapeuta_id', userId)
+    }
+
+    const { data } = await query
 
     if (data) {
       setEventos(
@@ -345,7 +367,7 @@ export default function AgendaPage() {
 
       const { data: usuario } = await supabase
         .from('usuarios')
-        .select('clinica_id, sucursal_id')
+        .select('clinica_id, sucursal_id, rol')
         .eq('id', session.user.id)
         .single()
       if (!usuario) return
@@ -377,7 +399,7 @@ export default function AgendaPage() {
 
       setModalAbierto(false)
       setCitaEditando(null)
-      await fetchCitas(usuario.clinica_id)
+      await fetchCitas(usuario.clinica_id, usuario.rol, session.user.id)
     } catch (err) {
       toast.error(citaId ? 'Error al actualizar' : 'Error al agendar la cita')
       console.error(err)
@@ -388,14 +410,14 @@ export default function AgendaPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
+      const { data: usuario } = await supabase.from('usuarios').select('clinica_id, rol').eq('id', session.user.id).single()
       if (!usuario) return
 
       const { error } = await supabase.from('citas').update({ estado }).eq('id', citaId)
       if (error) throw error
       toast.success('Estado actualizado')
       setEventoSeleccionado(null)
-      await fetchCitas(usuario.clinica_id)
+      await fetchCitas(usuario.clinica_id, usuario.rol, session.user.id)
     } catch {
       toast.error('Error al actualizar')
     }
@@ -406,14 +428,14 @@ export default function AgendaPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
+      const { data: usuario } = await supabase.from('usuarios').select('clinica_id, rol').eq('id', session.user.id).single()
       if (!usuario) return
 
       const { error } = await supabase.from('citas').update({ estado: 'cancelada' }).eq('id', citaId)
       if (error) throw error
       toast.success('Cita cancelada')
       setEventoSeleccionado(null)
-      await fetchCitas(usuario.clinica_id)
+      await fetchCitas(usuario.clinica_id, usuario.rol, session.user.id)
     } catch {
       toast.error('Error al cancelar')
     }

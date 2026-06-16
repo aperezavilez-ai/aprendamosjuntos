@@ -25,6 +25,8 @@ const TIPOS_EVAL: { id: TipoEvaluacion; label: string; color: string; icon: stri
   { id: 'atencion', label: 'Atención', color: '#10B981', icon: '👁️' },
   { id: 'conducta', label: 'Conducta', color: '#F59E0B', icon: '❤️' },
   { id: 'cognitivo', label: 'Cognitivo', color: '#EF4444', icon: '💡' },
+  { id: 'lenguaje', label: 'Lenguaje', color: '#0EA5E9', icon: '🗣️' },
+  { id: 'socioafectivo', label: 'Socioafectivo', color: '#EC4899', icon: '🤝' },
 ]
 
 interface ItemEval {
@@ -368,13 +370,33 @@ export default function EvaluacionesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
+      const { data: usuario } = await supabase
+        .from('usuarios')
+        .select('clinica_id, rol')
+        .eq('id', session.user.id)
+        .single()
       if (!usuario) return
 
-      const [evals, pacs] = await Promise.all([
-        supabase.from('evaluaciones').select(`*, paciente:pacientes(nombre, apellidos), terapeuta:usuarios(nombre)`).eq('clinica_id', usuario.clinica_id).order('fecha', { ascending: false }).limit(50),
-        supabase.from('pacientes').select('id, nombre, apellidos').eq('clinica_id', usuario.clinica_id).eq('activo', true).order('nombre'),
-      ])
+      const evalsQuery = supabase
+        .from('evaluaciones')
+        .select(`*, paciente:pacientes(nombre, apellidos), terapeuta:usuarios(nombre)`)
+        .eq('clinica_id', usuario.clinica_id)
+        .order('fecha', { ascending: false })
+        .limit(50)
+
+      const pacsQuery = supabase
+        .from('pacientes')
+        .select('id, nombre, apellidos')
+        .eq('clinica_id', usuario.clinica_id)
+        .eq('activo', true)
+        .order('nombre')
+
+      if (usuario.rol === 'terapeuta') {
+        evalsQuery.eq('terapeuta_id', session.user.id)
+        pacsQuery.eq('terapeuta_asignado_id', session.user.id)
+      }
+
+      const [evals, pacs] = await Promise.all([evalsQuery, pacsQuery])
 
       setEvaluaciones((evals.data || []) as unknown as Evaluacion[])
       setPacientes((pacs.data || []) as Paciente[])

@@ -708,14 +708,13 @@ export default function ConfiguracionPage() {
               <h2 className="text-sm font-semibold text-neutral-900 border-b border-neutral-100 pb-3">
                 Notificaciones automáticas
               </h2>
+              <p className="text-xs text-neutral-500">
+                Actualmente están activas únicamente las automatizaciones de recordatorios de cita.
+              </p>
               <div className="space-y-4">
                 {[
                   { id: 'recordatorio_24h', label: 'Recordatorio de cita 24 horas antes', desc: 'Envía un WhatsApp a los padres un día antes de la cita' },
                   { id: 'recordatorio_1h', label: 'Recordatorio de cita 1 hora antes', desc: 'Envía un recordatorio una hora antes de la cita' },
-                  { id: 'confirmacion_cita', label: 'Solicitar confirmación de cita', desc: 'Pide a los padres que confirmen o cancelen 48h antes' },
-                  { id: 'ausencia_seguimiento', label: 'Seguimiento por ausencia', desc: 'Notifica al terapeuta cuando un paciente no asiste 2 sesiones seguidas' },
-                  { id: 'cobro_pendiente', label: 'Aviso de pago pendiente', desc: 'Envía recordatorio de cobros vencidos' },
-                  { id: 'reporte_mensual', label: 'Reporte mensual automático', desc: 'Genera y envía reporte de progreso al inicio de cada mes' },
                 ].map(notif => (
                   <div key={notif.id} className="flex items-center justify-between gap-4 p-3 bg-neutral-50 rounded-xl">
                     <div>
