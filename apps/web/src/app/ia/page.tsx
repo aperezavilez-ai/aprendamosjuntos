@@ -144,7 +144,7 @@ export default function IAClinicaPage() {
       const evaluaciones = evalsRes.data || []
 
       const contexto = `
-PACIENTE: ${paciente?.nombre} ${paciente?.apellidos}
+PACIENTE: [paciente anónimo]
 DIAGNÓSTICOS: ${JSON.stringify(paciente?.diagnosticos)}
 MOTIVO DE CONSULTA: ${paciente?.motivo_consulta}
 
