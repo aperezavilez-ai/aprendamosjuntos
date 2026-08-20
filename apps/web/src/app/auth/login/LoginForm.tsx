@@ -64,8 +64,13 @@ export default function LoginForm() {
       const nextParam = searchParams.get('next')
       const next = nextParam && nextParam.startsWith('/') ? nextParam : defaultPath
       window.location.assign(usuario.rol === 'padre' && nextParam?.startsWith('/dashboard') ? defaultPath : next)
-    } catch {
-      toast.error('Error al iniciar sesión')
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : ''
+      toast.error(
+        message.includes('fetch') || message.includes('network')
+          ? 'No se pudo conectar con el servicio de acceso. Intenta de nuevo en unos momentos.'
+          : 'Error al iniciar sesión',
+      )
     } finally {
       setLoading(false)
     }
