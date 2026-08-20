@@ -42,6 +42,8 @@ async function restFetch(path, options = {}) {
     ...options,
     headers: {
       ...headers,
+      'Accept-Profile': 'aprendamosjuntos',
+      'Content-Profile': 'aprendamosjuntos',
       Prefer: options.prefer || 'return=representation',
       ...options.headers,
     },

@@ -5,6 +5,7 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: { schema: 'aprendamosjuntos' },
       // The dedicated Supabase proxy is cross-origin and manages the session
       // through the SSR browser storage adapter.
       global: {

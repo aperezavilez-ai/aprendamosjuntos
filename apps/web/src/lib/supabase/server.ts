@@ -22,6 +22,7 @@ function createServerClientWithCookies(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      db: { schema: 'aprendamosjuntos' },
       cookies: {
         getAll,
         setAll: setAll ?? (() => {}),
