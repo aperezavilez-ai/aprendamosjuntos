@@ -14,13 +14,15 @@ import {
   PencilIcon,
   XMarkIcon,
   StarIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Clinica, Sucursal, Usuario, Paciente } from '@/types'
+import { formatAuditEntry, getAuditIcon, type AuditRow } from '@/lib/audit-labels'
 
-type TabConfig = 'clinica' | 'sucursales' | 'usuarios' | 'encuestas' | 'whatsapp' | 'notificaciones' | 'seguridad'
+type TabConfig = 'clinica' | 'sucursales' | 'usuarios' | 'encuestas' | 'whatsapp' | 'notificaciones' | 'seguridad' | 'actividad'
 
 interface EncuestaRow {
   id: string
@@ -33,10 +35,11 @@ interface EncuestaRow {
   paciente: { nombre: string; apellidos: string } | null
 }
 
-const tabsConfig: { id: TabConfig; label: string; icon: any }[] = [
+const tabsConfig: { id: TabConfig; label: string; icon: typeof BuildingOffice2Icon; adminOnly?: boolean }[] = [
   { id: 'clinica', label: 'Mi clínica', icon: BuildingOffice2Icon },
   { id: 'sucursales', label: 'Sucursales', icon: BuildingOffice2Icon },
   { id: 'usuarios', label: 'Usuarios', icon: UserGroupIcon },
+  { id: 'actividad', label: 'Actividad', icon: ClockIcon, adminOnly: true },
   { id: 'encuestas', label: 'Encuestas', icon: StarIcon },
   { id: 'whatsapp', label: 'WhatsApp', icon: PhoneIcon },
   { id: 'notificaciones', label: 'Notificaciones', icon: BellIcon },
@@ -80,7 +83,12 @@ export default function ConfiguracionPage() {
   const [encuestas, setEncuestas] = useState<EncuestaRow[]>([])
   const [pacientesActivos, setPacientesActivos] = useState<Paciente[]>([])
   const [formEncuesta, setFormEncuesta] = useState({ paciente_id: '', periodo: format(new Date(), 'MMMM yyyy', { locale: es }) })
+  const [userRol, setUserRol] = useState<string | null>(null)
+  const [actividad, setActividad] = useState<AuditRow[]>([])
   const supabase = createClient()
+
+  const esAdmin = userRol === 'admin_general' || userRol === 'director_clinico'
+  const tabsVisibles = tabsConfig.filter(t => !('adminOnly' in t && t.adminOnly) || esAdmin)
 
   useEffect(() => { fetchData() }, [])
 
@@ -104,16 +112,27 @@ export default function ConfiguracionPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
       setCurrentUserId(session.user.id)
-      const { data: usuario } = await supabase.from('usuarios').select('clinica_id').eq('id', session.user.id).single()
+      const { data: usuario } = await supabase.from('usuarios').select('clinica_id, rol').eq('id', session.user.id).single()
       if (!usuario) return
+      setUserRol(usuario.rol)
 
-      const [clinRes, sucRes, usrRes, waRes, encRes, pacRes] = await Promise.all([
+      const auditQuery = ['admin_general', 'director_clinico'].includes(usuario.rol)
+        ? supabase
+            .from('auditoria')
+            .select('*, usuario:usuarios(nombre, apellidos, rol)')
+            .eq('clinica_id', usuario.clinica_id)
+            .order('created_at', { ascending: false })
+            .limit(100)
+        : null
+
+      const [clinRes, sucRes, usrRes, waRes, encRes, pacRes, auditRes] = await Promise.all([
         supabase.from('clinicas').select('*').eq('id', usuario.clinica_id).single(),
         supabase.from('sucursales').select('*').eq('clinica_id', usuario.clinica_id).order('nombre'),
         supabase.from('usuarios').select('*').eq('clinica_id', usuario.clinica_id).order('nombre'),
         supabase.from('config_whatsapp').select('*').eq('clinica_id', usuario.clinica_id).maybeSingle(),
         supabase.from('encuestas_satisfaccion').select('*, paciente:pacientes(nombre, apellidos)').eq('clinica_id', usuario.clinica_id).order('created_at', { ascending: false }).limit(50),
         supabase.from('pacientes').select('id, nombre, apellidos').eq('clinica_id', usuario.clinica_id).eq('activo', true).order('nombre'),
+        auditQuery ?? Promise.resolve({ data: [] }),
       ])
 
       if (clinRes.data) {
@@ -128,6 +147,7 @@ export default function ConfiguracionPage() {
       setUsuarios((usrRes.data || []) as Usuario[])
       setEncuestas((encRes.data || []) as unknown as EncuestaRow[])
       setPacientesActivos((pacRes.data || []) as Paciente[])
+      setActividad((auditRes.data || []) as unknown as AuditRow[])
       if (waRes.data) setConfigWA({
         phone_number_id: waRes.data.phone_number_id || '',
         access_token: waRes.data.access_token || '',
@@ -375,13 +395,23 @@ export default function ConfiguracionPage() {
           <h1 className="page-title">Configuración</h1>
           <p className="page-subtitle">Administra tu clínica y ajustes del sistema</p>
         </div>
+        {tabActiva !== 'usuarios' && (
+          <button
+            type="button"
+            onClick={() => setTabActiva('usuarios')}
+            className="btn-secondary w-full sm:w-auto justify-center"
+          >
+            <UserGroupIcon className="w-4 h-4" />
+            Ir a usuarios
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* Sidebar de tabs */}
         <div className="card p-3 h-fit">
           <nav className="space-y-0.5">
-            {tabsConfig.map(tab => (
+            {tabsVisibles.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setTabActiva(tab.id)}
@@ -548,6 +578,61 @@ export default function ConfiguracionPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: ACTIVIDAD (admin) */}
+          {tabActiva === 'actividad' && esAdmin && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-neutral-900">Bitácora de actividad</p>
+                  <p className="text-xs text-neutral-500">
+                    Registro automático de acciones del staff: pacientes, citas, sesiones, evaluaciones y más.
+                  </p>
+                </div>
+                <button type="button" onClick={fetchData} className="btn-secondary btn-sm w-full sm:w-auto justify-center">
+                  Actualizar
+                </button>
+              </div>
+              <div className="card overflow-hidden">
+                {actividad.length === 0 ? (
+                  <div className="empty-state py-12">
+                    <ClockIcon className="empty-state-icon w-12 h-12" />
+                    <p className="empty-state-title">Sin actividad registrada</p>
+                    <p className="empty-state-desc">
+                      Las acciones de los usuarios aparecerán aquí al crear o editar registros.
+                      Si acabas de activar auditoría, aplica la migración 006 en Supabase.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-neutral-100 max-h-[520px] overflow-y-auto">
+                    {actividad.map((item) => (
+                      <div key={item.id} className="flex items-start gap-3 px-4 sm:px-5 py-4 hover:bg-neutral-50">
+                        <span className="text-lg shrink-0 mt-0.5">{getAuditIcon(item.tabla)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-neutral-900">
+                            {formatAuditEntry(item)}
+                          </p>
+                          <p className="text-xs text-neutral-500 mt-0.5">
+                            {(item.usuario as AuditRow['usuario'])
+                              ? `${item.usuario!.nombre} ${item.usuario!.apellidos || ''}`.trim()
+                              : 'Sistema'}
+                            {' · '}
+                            {format(new Date(item.created_at), "d MMM yyyy, HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                        <span className={`badge text-2xs shrink-0 ${
+                          item.accion === 'INSERT' ? 'badge-success' :
+                          item.accion === 'UPDATE' ? 'badge-primary' : 'badge-danger'
+                        }`}>
+                          {item.accion === 'INSERT' ? 'Alta' : item.accion === 'UPDATE' ? 'Edición' : 'Baja'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

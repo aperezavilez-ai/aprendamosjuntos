@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "projectName": "Aprendiendo Juntos",
+  "projectSlug": "aprendiendo-juntos",
+  "isolationMode": "dedicated_supabase",
+  "supabase": {
+    "url": "https://supabase.gafcore.com/aprendiendo-juntos",
+    "instanceId": "aprendiendo-juntos",
+    "database": "postgres",
+    "schema": "aprendamosjuntos"
+  }
+}

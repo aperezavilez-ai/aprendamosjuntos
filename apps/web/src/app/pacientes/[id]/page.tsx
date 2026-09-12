@@ -59,74 +59,17 @@ export default function ExpedientePaciente() {
 
   const fetchExpediente = async () => {
     try {
-      // Paciente base
-      const { data: pac } = await supabase
-        .from('pacientes')
-        .select(`
-          *,
-          terapeuta_asignado:usuarios(id, nombre, apellidos, foto_url, email),
-          sucursal:sucursales(nombre)
-        `)
-        .eq('id', pacienteId)
-        .single()
+      const res = await fetch(`/api/pacientes/${pacienteId}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Error al cargar expediente')
 
-      if (pac) setPaciente(pac as unknown as Paciente)
-
-      // Familiares
-      const { data: fams } = await supabase
-        .from('familiares')
-        .select('*')
-        .eq('paciente_id', pacienteId)
-        .order('es_contacto_principal', { ascending: false })
-
-      setFamiliares((fams || []) as Familiar[])
-
-      // Últimas citas
-      const { data: citasData } = await supabase
-        .from('citas')
-        .select(`*, terapeuta:usuarios(nombre, apellidos)`)
-        .eq('paciente_id', pacienteId)
-        .order('fecha_inicio', { ascending: false })
-        .limit(10)
-
-      setCitas((citasData || []) as unknown as Cita[])
-
-      // Evaluaciones
-      const { data: evals } = await supabase
-        .from('evaluaciones')
-        .select(`*, terapeuta:usuarios(nombre)`)
-        .eq('paciente_id', pacienteId)
-        .order('fecha', { ascending: false })
-
-      setEvaluaciones((evals || []) as unknown as Evaluacion[])
-
-      // Planes terapéuticos
-      const { data: planesData } = await supabase
-        .from('planes_terapeuticos')
-        .select(`*, objetivos(id, estado, porcentaje)`)
-        .eq('paciente_id', pacienteId)
-        .order('fecha_inicio', { ascending: false })
-
-      setPlanes((planesData || []) as unknown as PlanTerapeutico[])
-
-      const { data: sesionesData } = await supabase
-        .from('sesiones')
-        .select(`*, terapeuta:usuarios(nombre, apellidos)`)
-        .eq('paciente_id', pacienteId)
-        .order('fecha', { ascending: false })
-        .limit(20)
-
-      setSesiones(sesionesData || [])
-
-      // Archivos
-      const { data: archivosData } = await supabase
-        .from('archivos_paciente')
-        .select('*')
-        .eq('paciente_id', pacienteId)
-        .order('created_at', { ascending: false })
-
-      setArchivos((archivosData || []) as ArchivoPaciente[])
-
+      setPaciente(json.paciente as Paciente)
+      setFamiliares((json.familiares || []) as Familiar[])
+      setCitas((json.citas || []) as unknown as Cita[])
+      setEvaluaciones((json.evaluaciones || []) as unknown as Evaluacion[])
+      setPlanes((json.planes || []) as unknown as PlanTerapeutico[])
+      setSesiones(json.sesiones || [])
+      setArchivos((json.archivos || []) as ArchivoPaciente[])
     } catch (err) {
       console.error('Error fetching expediente:', err)
     } finally {

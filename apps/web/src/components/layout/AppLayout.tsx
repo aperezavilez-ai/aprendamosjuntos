@@ -23,6 +23,7 @@ import {
   SparklesIcon,
   UserPlusIcon,
   Squares2X2Icon,
+  ClockIcon,
 } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import type { Usuario } from '@/types'
@@ -42,6 +43,7 @@ const navItems = [
 ]
 
 const adminNavItems = [
+  { href: '/configuracion?tab=actividad', label: 'Actividad', icon: ClockIcon },
   { href: '/configuracion?tab=sucursales', label: 'Sucursales', icon: BuildingOffice2Icon },
   { href: '/configuracion', label: 'Configuración', icon: Cog6ToothIcon },
 ]
@@ -124,7 +126,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
     { href: '/mensajes', label: 'Mensajes', icon: ChatBubbleLeftRightIcon },
     { href: '/notificaciones', label: 'Notificaciones', icon: BellIcon },
     ...(user?.rol && ['admin_general', 'director_clinico'].includes(user.rol)
-      ? [{ href: '/configuracion', label: 'Configuración', icon: Cog6ToothIcon }]
+      ? [
+          { href: '/configuracion?tab=actividad', label: 'Actividad del staff', icon: ClockIcon },
+          { href: '/configuracion', label: 'Configuración', icon: Cog6ToothIcon },
+        ]
       : []),
   ]
 

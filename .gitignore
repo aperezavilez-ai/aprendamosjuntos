@@ -58,3 +58,4 @@ supabase/.env
 public/sw.js.map
 
 .vercel
+.env*

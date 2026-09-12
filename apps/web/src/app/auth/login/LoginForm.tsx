@@ -6,7 +6,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import Logo from '@/components/brand/Logo'
 import { createClient } from '@/lib/supabase/client'
-import { authErrorMessage, normalizeEmail } from '@/lib/auth'
+import { normalizeEmail } from '@/lib/auth'
 
 export default function LoginForm() {
   const searchParams = useSearchParams()
@@ -25,52 +25,28 @@ export default function LoginForm() {
     }
     setLoading(true)
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailNorm,
-        password,
+      // Login same-origin: evita CORS del proxy GafCore en el navegador
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: emailNorm, password }),
       })
+      const data = await res.json().catch(() => ({}))
 
-      if (error) {
-        toast.error(authErrorMessage(error.message))
-        return
-      }
-
-      if (!data.session) {
-        toast.error('No se pudo iniciar sesión. Intenta de nuevo.')
-        return
-      }
-
-      const { data: usuario, error: profileError } = await supabase
-        .from('usuarios')
-        .select('id, activo, rol')
-        .eq('id', data.session.user.id)
-        .maybeSingle()
-
-      if (profileError || !usuario) {
-        await supabase.auth.signOut()
-        toast.error('Tu cuenta no está configurada. Contacta al administrador.')
-        return
-      }
-
-      if (!usuario.activo) {
-        await supabase.auth.signOut()
-        toast.error('Tu cuenta está desactivada.')
+      if (!res.ok) {
+        toast.error(data.error || 'Error al iniciar sesión')
         return
       }
 
       toast.success('Bienvenido de vuelta')
-      const defaultPath = usuario.rol === 'padre' ? '/portal/citas' : '/dashboard'
+      const rol = data.user?.rol as string | undefined
+      const defaultPath = rol === 'padre' ? '/portal/citas' : '/dashboard'
       const nextParam = searchParams.get('next')
       const next = nextParam && nextParam.startsWith('/') ? nextParam : defaultPath
-      window.location.assign(usuario.rol === 'padre' && nextParam?.startsWith('/dashboard') ? defaultPath : next)
-    } catch (error) {
-      const message = error instanceof Error ? error.message.toLowerCase() : ''
-      toast.error(
-        message.includes('fetch') || message.includes('network')
-          ? 'No se pudo conectar con el servicio de acceso. Intenta de nuevo en unos momentos.'
-          : 'Error al iniciar sesión',
-      )
+      window.location.assign(rol === 'padre' && nextParam?.startsWith('/dashboard') ? defaultPath : next)
+    } catch {
+      toast.error('No se pudo conectar con el servicio de acceso. Intenta de nuevo en unos momentos.')
     } finally {
       setLoading(false)
     }

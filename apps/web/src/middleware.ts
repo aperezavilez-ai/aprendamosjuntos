@@ -2,10 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_PATHS = ['/auth/login', '/auth/registro', '/auth/callback', '/auth/nueva-contrasena', '/offline']
+const ADMIN_EMAIL = 'alfonsoavilery@icloud.com'
 
-async function getUserRol(supabase: ReturnType<typeof createServerClient>, userId: string) {
+async function getUserRol(supabase: ReturnType<typeof createServerClient>, userId: string, email?: string | null) {
   const { data } = await supabase.from('usuarios').select('rol').eq('id', userId).maybeSingle()
-  return data?.rol as string | undefined
+  if (data?.rol) return data.rol as string
+
+  const normalizedEmail = email?.trim().toLowerCase()
+  if (normalizedEmail) {
+    const { data: byEmail } = await supabase.from('usuarios').select('rol').ilike('email', normalizedEmail).maybeSingle()
+    if (byEmail?.rol) return byEmail.rol as string
+  }
+
+  if (normalizedEmail === ADMIN_EMAIL) return 'admin_general'
+  return undefined
 }
 
 const STAFF_ADMIN_ROUTES = ['/configuracion']
@@ -51,7 +61,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user) {
-    const rol = await getUserRol(supabase, user.id)
+    const rol = await getUserRol(supabase, user.id, user.email)
     const esPadre = rol === 'padre'
 
     if (pathname.startsWith('/auth/login')) {

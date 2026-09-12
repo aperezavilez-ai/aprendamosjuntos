@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
+import PacienteAccionesMenu from '@/components/pacientes/PacienteAccionesMenu'
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -10,8 +11,6 @@ import {
   UserIcon,
   PhoneIcon,
   CalendarIcon,
-  EllipsisVerticalIcon,
-  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline'
 import { format, differenceInYears } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -32,61 +31,29 @@ export default function PacientesPage() {
   const [totalPacientes, setTotalPacientes] = useState(0)
   const [paginaActual, setPaginaActual] = useState(1)
   const POR_PAGINA = 20
-  const supabase = createClient()
 
   const fetchPacientes = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      const params = new URLSearchParams({
+        filtro: filtroEstado,
+        pagina: String(paginaActual),
+        porPagina: String(POR_PAGINA),
+      })
+      if (busqueda.trim()) params.set('q', busqueda.trim())
 
-      const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('clinica_id, sucursal_id, rol')
-        .eq('id', session.user.id)
-        .single()
-      if (!usuario) return
+      const res = await fetch(`/api/pacientes?${params}`)
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Error al cargar pacientes')
 
-      let query = supabase
-        .from('pacientes')
-        .select(`
-          *,
-          terapeuta_asignado:usuarios(nombre, apellidos, foto_url),
-          sucursal:sucursales(nombre)
-        `, { count: 'exact' })
-        .eq('clinica_id', usuario.clinica_id)
-        .order('nombre')
-        .range((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA - 1)
-
-      // Filtros
-      if (filtroEstado === 'activos') query = query.eq('activo', true)
-      if (filtroEstado === 'inactivos') query = query.eq('activo', false)
-      if (filtroEstado === 'nuevos') {
-        const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-        query = query.gte('created_at', inicioMes)
-      }
-
-      // Búsqueda
-      if (busqueda.trim()) {
-        query = query.ilike('nombre', `%${busqueda}%`)
-      }
-
-      // Terapeuta solo ve sus pacientes
-      if (usuario.rol === 'terapeuta') {
-        query = query.eq('terapeuta_asignado_id', session.user.id)
-      }
-
-      const { data, count, error } = await query
-      if (error) throw error
-
-      setPacientes((data as unknown as Paciente[]) || [])
-      setTotalPacientes(count || 0)
+      setPacientes((json.data as Paciente[]) || [])
+      setTotalPacientes(json.count || 0)
     } catch (err) {
       console.error('Error fetching pacientes:', err)
     } finally {
       setLoading(false)
     }
-  }, [supabase, busqueda, filtroEstado, paginaActual])
+  }, [busqueda, filtroEstado, paginaActual])
 
   useEffect(() => {
     const timer = setTimeout(fetchPacientes, busqueda ? 400 : 0)
@@ -102,6 +69,23 @@ export default function PacientesPage() {
   }
 
   const totalPaginas = Math.ceil(totalPacientes / POR_PAGINA)
+
+  const darDeBaja = async (paciente: Paciente) => {
+    if (!confirm(`¿Dar de baja a ${paciente.nombre} ${paciente.apellidos}?`)) return
+    try {
+      const res = await fetch(`/api/pacientes/${paciente.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: false }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Error al dar de baja')
+      toast.success('Paciente dado de baja')
+      fetchPacientes()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al dar de baja')
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -143,7 +127,7 @@ export default function PacientesPage() {
       </div>
 
       {/* Tabla de pacientes */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-visible">
         {loading ? (
           <div className="space-y-0">
             {[...Array(8)].map((_, i) => (
@@ -251,36 +235,11 @@ export default function PacientesPage() {
 
                   {/* Acciones */}
                   <div className="col-span-4 md:col-span-1 flex justify-end">
-                    <div className="relative group">
-                      <button className="btn-icon btn-ghost text-neutral-400">
-                        <EllipsisVerticalIcon className="w-4 h-4" />
-                      </button>
-                      <div className="absolute right-0 top-8 w-44 bg-white rounded-xl shadow-modal border border-neutral-200 py-1 z-10 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
-                        <Link
-                          href={`/pacientes/${p.id}`}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
-                        >
-                          Ver expediente
-                        </Link>
-                        <Link
-                          href={`/pacientes/${p.id}/editar`}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
-                        >
-                          Editar
-                        </Link>
-                        <Link
-                          href={`/agenda?paciente=${p.id}`}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
-                        >
-                          Agendar cita
-                        </Link>
-                        <div className="divider my-1" />
-                        <button className="flex items-center gap-2 px-3 py-2 text-sm text-danger-600 hover:bg-danger-50 w-full">
-                          <ArchiveBoxIcon className="w-4 h-4" />
-                          Dar de baja
-                        </button>
-                      </div>
-                    </div>
+                    <PacienteAccionesMenu
+                      pacienteId={p.id}
+                      activo={p.activo}
+                      onDarDeBaja={() => darDeBaja(p)}
+                    />
                   </div>
                   </div>
                 </div>

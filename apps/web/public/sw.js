@@ -1,5 +1,5 @@
-const CACHE_NAME = 'aprendamos-juntos-v2'
-const STATIC_CACHE = 'aprendamos-static-v2'
+const CACHE_NAME = 'aprendamos-juntos-v5'
+const STATIC_CACHE = 'aprendamos-static-v5'
 
 const STATIC_ASSETS = [
   '/offline',
@@ -42,6 +42,8 @@ self.addEventListener('fetch', (event) => {
   // No cachear API calls ni supabase
   if (
     url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/dashboard') ||
     url.hostname.includes('supabase') ||
     url.hostname.includes('anthropic') ||
     url.hostname.includes('graph.facebook') ||
