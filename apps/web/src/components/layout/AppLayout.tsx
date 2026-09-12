@@ -59,35 +59,26 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [notifCount, setNotifCount] = useState(0)
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/auth/login'); return }
-
-      const { data: usuario } = await supabase
-        .from('usuarios')
-        .select('*, clinica:clinicas(nombre)')
-        .eq('id', session.user.id)
-        .single()
-
-      if (usuario) {
-        setUser(usuario as Usuario)
+      try {
+        const res = await fetch('/api/staff/me', { credentials: 'include', cache: 'no-store' })
+        if (res.status === 401) {
+          router.push('/auth/login')
+          return
+        }
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.user) setUser(data.user as Usuario)
+        setNotifCount(data.notifCount || 0)
+      } catch (err) {
+        console.error('Error cargando perfil:', err)
       }
-
-      // Notificaciones no leídas
-      const { count } = await supabase
-        .from('notificaciones')
-        .select('*', { count: 'exact', head: true })
-        .eq('usuario_id', session.user.id)
-        .eq('leida', false)
-
-      setNotifCount(count || 0)
     }
 
     fetchUser()
-  }, [supabase, router])
+  }, [router])
 
   const handleSignOut = async () => {
     const supabase = createClient()
